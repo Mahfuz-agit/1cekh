@@ -1,20 +1,34 @@
 import os
-from google import genai
+import google.generativeai as genai
+from youtube_transcript_api import YouTubeTranscriptApi
 
-# গুগলের একদম লেটেস্ট ২০২৬ স্ট্যান্ডার্ড অনুযায়ী ক্লায়েন্ট সেটআপ
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# API কনফিগারেশন
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-print("১. সিস্টেম কানেক্ট হচ্ছে...")
 try:
-    print("২. জেমিনির ব্রেইনে মেসেজ পাঠানো হচ্ছে...")
-    # একদম নতুন ও স্ট্যাবল জেমিনি মডেল ব্যবহার করা হচ্ছে
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents="আমাকে ৩ লাইনের একটি স্মার্ট ও পাওয়ারফুল মোটিভেশনাল কথা বলো।"
-    )
+    # ইউটিউব আইডি
+    video_id = "jNQXAC9IVRw"
     
-    print("\n--- 🎯 এলিট রেজাল্ট ---")
-    print(response.text)
+    # ট্রান্সক্রিপ্ট সংগ্রহ
+    transcript = YouTubeTranscriptApi.get_transcript(video_id)
+    text = " ".join([i['text'] for i in transcript])
+    
+    # জেমিনি দিয়ে প্রসেসিং
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    prompt = f"""
+    Analyze this lecture and provide:
+    1. Concise Summary.
+    2. Key Takeaways in bullet points.
+    3. A brief 'Knowledge Graph' of core concepts.
+    
+    Content: {text[:8000]}
+    """
+    response = model.generate_content(prompt)
+    
+    # ফাইল সেভ
+    with open(f"node_{video_id}.md", "w", encoding="utf-8") as f:
+        f.write(f"# Knowledge Node: {video_id}\n\n{response.text}")
+    print("Success: Node created.")
 
 except Exception as e:
-    print(f"কোনো সমস্যা হয়েছে: {e}")
+    print(f"Error: {str(e)}")
