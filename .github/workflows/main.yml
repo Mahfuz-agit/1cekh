@@ -1,46 +1,41 @@
-name: Elite Knowledge Engine
+import os
+import google.generativeai as genai
+from youtube_transcript_api import YouTubeTranscriptApi
 
-on:
-  workflow_dispatch: 
+# API কনফিগারেশন
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-permissions:
-  contents: write
+def get_video_notes(video_id):
+    try:
+        # ইউটিউব থেকে ট্রান্সক্রিপ্ট নেওয়া
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        text = " ".join([i['text'] for i in transcript])
+        
+        # জেমিনি প্রম্পট
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+        Analyze this lecture transcript and provide:
+        1. Executive Summary (Concise)
+        2. Key Takeaways (Bullet points)
+        3. Knowledge Graph/Concept Map (Structured ideas)
+        4. Actionable Steps to master this topic
+        
+        Transcript: {text[:15000]}
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error occurred: {str(e)}"
 
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+# প্রসেস শুরু
+video_id = "jNQXAC9IVRw" # আপনি চাইলে এখানে নতুন ভিডিও আইডি দিতে পারেন
+content = get_video_notes(video_id)
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+# ফাইল সেভ করা
+filename = f"knowledge_node_{video_id}.md"
+with open(filename, "w", encoding="utf-8") as f:
+    f.write(f"# Elite Knowledge Node: {video_id}\n\n")
+    f.write(content)
 
-      - name: Install Packages
-        run: pip install google-genai google-generativeai youtube-transcript-api
-
-      - name: Run Main Engine
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
-
-      - name: Run Build Script
-        run: python build.py
-
-      - name: Commit and Push
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Auto-generated website files" || echo "No changes to commit"
-          git push
-      - name: Run Curator
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python curator.py
-              - name: Run Curator
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python curator.py
+print(f"Successfully generated {filename}")
