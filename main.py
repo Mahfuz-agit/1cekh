@@ -1,15 +1,17 @@
 import os
-import google.generativeai as genai
+from google import genai
 
-# জেমিনির চাবি সেট করা হচ্ছে
-API_KEY = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=API_KEY)
+# গুগলের একদম লেটেস্ট ২০২৬ স্ট্যান্ডার্ড অনুযায়ী ক্লায়েন্ট সেটআপ
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 print("১. সিস্টেম কানেক্ট হচ্ছে...")
 try:
     print("২. জেমিনির ব্রেইনে মেসেজ পাঠানো হচ্ছে...")
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content("আমাকে ৩ লাইনের একটি স্মার্ট ও পাওয়ারফুল মোটিভেশনাল কথা বলো।")
+    # একদম নতুন ও স্ট্যাবল জেমিনি মডেল ব্যবহার করা হচ্ছে
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents="আমাকে ৩ লাইনের একটি স্মার্ট ও পাওয়ারফুল মোটিভেশনাল কথা বলো।"
+    )
     
     print("\n--- 🎯 এলিট রেজাল্ট ---")
     print(response.text)
