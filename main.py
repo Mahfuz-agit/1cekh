@@ -1,34 +1,46 @@
 import os
 import json
+import subprocess
 import google.generativeai as genai
-from youtube_transcript_api import YouTubeTranscriptApi
 
-# ১. এপিআই কি চেক (যদি কি না থাকে তবে এখানেই কোড ক্র্যাশ করবে)
+# ১. এপিআই কি চেক
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError("CRITICAL: GEMINI_API_KEY is completely missing in GitHub Secrets!")
+    raise ValueError("CRITICAL: GEMINI_API_KEY is missing!")
 
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# টেস্ট করার জন্য একটি নিশ্চিত সচল ভিডিও আইডি
 video_id = "dQw4w9WgXcQ" 
-
 print(f"Starting pipeline for video: {video_id}")
 
-# ২. ট্রান্সক্রিপ্ট আনা (সমস্যা হলে গিটহাব অ্যাকশন এখানেই ফেইল করবে)
-print("Attempting to fetch YouTube transcript...")
-transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-text = " ".join([i['text'] for i in transcript_list])
-print("Successfully fetched transcript!")
+# ২. পাইথনের বাইরে সরাসরি টার্মিনাল কমান্ড দিয়ে ট্রান্সক্রিপ্ট নামানো
+print("Fetching transcript via CLI subprocess...")
+temp_file = "transcript.json"
 
-# ৩. জেমিনি এপিআই কল (এপিআই কি নষ্ট বা কোটা শেষ হলে এখানে ক্র্যাশ করবে)
+# টার্মিনালে সরাসরি রান করানো হচ্ছে: youtube_transcript_api video_id --format json
+subprocess.run(
+    ["youtube_transcript_api", video_id, "--format", "json", "--output", temp_file],
+    check=True
+)
+
+# ৩. নামানো ফাইলটি পাইথন দিয়ে রিড করা
+if not os.path.exists(temp_file):
+    raise FileNotFoundError("CLI failed to create transcript file!")
+
+with open(temp_file, "r", encoding="utf-8") as f:
+    transcript_data = json.load(f)
+
+text = " ".join([item['text'] for item in transcript_data])
+print("Successfully loaded transcript text from CLI!")
+
+# ৪. জেমিনি এপিআই কল
 print("Sending data to Gemini API...")
 prompt = f"Provide a high-quality, structured summary with key takeaways for the following content: {text[:4000]}"
 response = model.generate_content(prompt)
 print("Gemini successfully generated content!")
 
-# ৪. ফাইল ও ফোল্ডার তৈরি
+# ৫. ফোল্ডার ও ফাইল তৈরি
 if not os.path.exists("content"):
     os.makedirs("content")
 
@@ -39,4 +51,8 @@ with open(filename, "w", encoding="utf-8") as f:
 with open("content/index.md", "a", encoding="utf-8") as f:
     f.write(f"\n* [Node: {video_id}](node_{video_id}.md)")
 
-print(f"SUCCESS: File created at {filename}")
+# অস্থায়ী ফাইলটি মুছে ফেলা
+if os.path.exists(temp_file):
+    os.remove(temp_file)
+
+print(f"SUCCESS: File created successfully at {filename}")
