@@ -16,9 +16,12 @@ jobs:
           python-version: '3.11'
 
       - name: Install Packages
-        run: pip install google-genai
+        run: pip install google-genai google-generativeai youtube-transcript-api
 
       - name: Run Main Engine
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
+
+      - name: Run Build Script
+        run: python build.py
