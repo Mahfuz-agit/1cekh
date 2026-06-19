@@ -19,7 +19,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install Dependencies
-        run: pip install -U google-generativeai youtube-transcript-api
+        run: |
+          pip install --upgrade pip
+          pip install google-generativeai youtube-transcript-api
 
       - name: Run Main Engine
         env:
@@ -30,6 +32,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add content/
+          git add .
           git commit -m "Auto-generated knowledge node" || echo "No changes to commit"
           git push
