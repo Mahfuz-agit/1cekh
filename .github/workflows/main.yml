@@ -36,3 +36,8 @@ jobs:
           git add .
           git commit -m "Auto-generated website files" || echo "No changes to commit"
           git push
+      - name: Run Curator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python curator.py
+        
