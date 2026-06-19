@@ -19,7 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Dependencies
-        run: pip install google-generativeai youtube-transcript-api
+        run: pip install -U google-generativeai youtube-transcript-api
 
       - name: Run Main Engine
         env:
