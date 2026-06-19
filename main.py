@@ -1,37 +1,51 @@
 import os
-import time
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-# ১. ব্যালেন্সড কনফিগারেশন
+# জেমিনি এপিআই কনফিগারেশন
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-def process_video(video_id):
+# যে ভিডিওগুলো আপনি প্রসেস করতে চান তার আইডি এখানে দিন
+videos_to_process = ["jNQXAC9IVRw"] 
+
+def curate_video(video_id):
     try:
-        # ট্রান্সক্রিপ্ট নেওয়া এবং ছোট করা (limit: 8000 tokens)
+        # ১. ট্রান্সক্রিপ্ট সংগ্রহ
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         text = " ".join([i['text'] for i in transcript])
         
-        # জেমিনিকে ব্যালেন্সড প্রম্পট দেওয়া
-        response = model.generate_content(f"Summarize this lecture briefly: {text[:8000]}")
+        # ২. Strict Rule দিয়ে যাচাই ও সামারি তৈরি
+        prompt = f"""
+        Strict Rule: Analyze this video content. 
+        Is this educational and high-quality for a 'Knowledge Hub'? 
+        If YES, provide a structured summary with key takeaways and a knowledge graph.
+        If NO (it's clickbait, entertainment, or irrelevant), return only the word "REJECT".
         
-        # সেভ করা
-        with open(f"content/node_{video_id}.md", "w", encoding="utf-8") as f:
-            f.write(f"# {video_id}\n\n{response.text}")
+        Content: {text[:8000]}
+        """
+        response = model.generate_content(prompt)
         
-        print(f"Success: {video_id}")
+        # ৩. ফিল্টারিং লজিক
+        if "REJECT" in response.text.upper():
+            print(f"Skipping: {video_id} (Irrelevant)")
+            return False
+            
+        # ৪. নোট সেভ করা
+        filename = f"content/node_{video_id}.md"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"# Knowledge Node: {video_id}\n\n{response.text}")
+        
+        # ৫. ইনডেক্স আপডেট করা
+        with open("content/index.md", "a", encoding="utf-8") as f:
+            f.write(f"\n* [Node: {video_id}](node_{video_id}.md)")
+            
+        print(f"Success: {video_id} curated.")
         return True
     except Exception as e:
         print(f"Error for {video_id}: {e}")
         return False
 
-# ২. সারাদিন কাজ করানোর জন্য লুপ (ব্যালেন্সড টাইম গ্যাপ)
-videos = ["jNQXAC9IVRw", "ANOTHER_ID_HERE"] # ভিডিও আইডি লিস্ট
-
-for vid in videos:
-    success = process_video(vid)
-    if success:
-        time.sleep(60) # প্রতিটা রিকোয়েস্টের মাঝে ১ মিনিটের বিরতি (এরর এড়ানোর জন্য)
-    else:
-        time.sleep(300) # ফেইল করলে ৫ মিনিট পর আবার চেষ্টা করবে
+# ভিডিওগুলো লুপে চালানো
+for vid in videos_to_process:
+    curate_video(vid)
