@@ -1,34 +1,37 @@
 import os
+import time
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-# জেমিনি এপিআই সেটআপ
+# ১. ব্যালেন্সড কনফিগারেশন
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# ভিডিও আইডি এবং ফাইল লোকেশন
-video_id = "jNQXAC9IVRw"
-file_path = f"content/node_{video_id}.md"
+def process_video(video_id):
+    try:
+        # ট্রান্সক্রিপ্ট নেওয়া এবং ছোট করা (limit: 8000 tokens)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        text = " ".join([i['text'] for i in transcript])
+        
+        # জেমিনিকে ব্যালেন্সড প্রম্পট দেওয়া
+        response = model.generate_content(f"Summarize this lecture briefly: {text[:8000]}")
+        
+        # সেভ করা
+        with open(f"content/node_{video_id}.md", "w", encoding="utf-8") as f:
+            f.write(f"# {video_id}\n\n{response.text}")
+        
+        print(f"Success: {video_id}")
+        return True
+    except Exception as e:
+        print(f"Error for {video_id}: {e}")
+        return False
 
-try:
-    # ১. ইউটিউব থেকে ট্রান্সক্রিপ্ট নেওয়া
-    transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    text = " ".join([i['text'] for i in transcript])
-    
-    # ২. জেমিনি দিয়ে নোট তৈরি
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    prompt = f"Summarize this lecture, give key takeaways, and a knowledge graph: {text[:8000]}"
-    response = model.generate_content(prompt)
-    
-    # ৩. কন্টেন্ট ফোল্ডারে নোট সেভ করা
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(f"# Knowledge Node: {video_id}\n\n{response.text}")
-    
-    # ৪. index.md এ লিংক যোগ করা (যদি আগে না থাকে)
-    new_link = f"\n* [Node: {video_id}](node_{video_id}.md)"
-    with open("content/index.md", "a", encoding="utf-8") as f:
-        f.write(new_link)
+# ২. সারাদিন কাজ করানোর জন্য লুপ (ব্যালেন্সড টাইম গ্যাপ)
+videos = ["jNQXAC9IVRw", "ANOTHER_ID_HERE"] # ভিডিও আইডি লিস্ট
 
-    print("Success: File created and Index updated.")
-
-except Exception as e:
-    print(f"Error: {e}")
+for vid in videos:
+    success = process_video(vid)
+    if success:
+        time.sleep(60) # প্রতিটা রিকোয়েস্টের মাঝে ১ মিনিটের বিরতি (এরর এড়ানোর জন্য)
+    else:
+        time.sleep(300) # ফেইল করলে ৫ মিনিট পর আবার চেষ্টা করবে
