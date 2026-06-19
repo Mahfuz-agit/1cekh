@@ -8,7 +8,7 @@ import google.generativeai as genai
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-videos_to_process = ["jNQXAC9IVRw"] 
+videos_to_process = ["dQw4w9WgXcQ"] 
 
 def curate_video(video_id):
     try:
