@@ -16,7 +16,12 @@ def curate_video(video_id):
         
         prompt = f"Summarize this: {text[:8000]}"
         response = model.generate_content(prompt)
-        
+
+        # ফোল্ডার চেক ও ফাইল সেভ নিশ্চিত করা
+        if not os.path.exists("content"):
+            os.makedirs("content")
+
+    
         filename = f"content/node_{video_id}.md"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(f"# Knowledge Node: {video_id}\n\n{response.text}")
